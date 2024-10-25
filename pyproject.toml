@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools-scm[toml]>=6.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "light"
+authors = [
+    {name = "Konstantin Leyde", email = "Konstantin.Leyde@gmail.com"},
+]
+description = "Complete a magnitude limited catalog"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = [
+    "hamiltonian monte-carlo",
+    "galaxy catalog",
+    "cosmology",
+]
+dependencies = [
+    "jax",
+    "numpyro",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "scipy",
+    "corner",
+    "pyyaml",
+    "arviz",
+]
+dynamic = [
+    "version",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/konstantinleyde/light"
+# "Documentation" = ""
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+cosmology = [
+    "astropy",
+]
+
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+addopts = [
+]
+testpaths = [
+    "tests"
+]
+
+[tool.ruff]
+indent-width = 4
+target-version = "py39"
+
+[tool.ruff.lint]
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+extend-select = ["I"]
