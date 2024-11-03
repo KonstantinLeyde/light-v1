@@ -14,14 +14,10 @@ def get_coordinates(dimensions):
 
 
 def get_data_folder(catalog_origin, data_location=""):
-    if catalog_origin == "micecat_slice_charlie":
-        data_path = "./micecat_data_slice/"
-    elif catalog_origin == "micecat_box":
-        data_path = "./micecat_data_cube/"
-    elif catalog_origin == "molino":
-        data_path = "./quixote_molino/"
-    elif catalog_origin.startswith("millenium"):
+    if catalog_origin.startswith("millenium"):
         data_path = "./millenium/"
+    else:
+        raise ValueError(f"Unknown catalog origin '{catalog_origin}'")
 
     return data_location + data_path
 
