@@ -10,11 +10,8 @@ import yaml
 from ..astrophysics.luminosity import MagnitudeDistribution
 from ..field import power_spectrum
 from ..field.field import RealLogNormalField
-from ..numpyro_utils import models, models_v2, priors
+from ..numpyro_utils import models, priors
 from ..utils import helper_functions
-
-DEFAULT_SERVER_PATH_RESULTS = "/mnt/lustre2/gravitational_waves/kleyde/galaxy_completion/gaussian_toy_model/results/power_spectrum_toy/millenium/id_{}/settings.yaml"
-# DEFAULT_SERVER_PATH_RESULTS = '/users/kleyde/galaxy_completion/gaussian_toy_model/results/temp_results/millenium/id_{}/settings.yaml'
 
 
 def bool_arg(val):
@@ -35,12 +32,11 @@ class Analysis(RealLogNormalField):
         kwargs_magnitude_model,
         kwargs_cosmology,
         kwargs_field,
-        data_location="/users/kleyde/galaxy_completion/gaussian_toy_model/data/",
-        # results_location='/users/kleyde/galaxy_completion/gaussian_toy_model/results/temp_results/',
-        results_location="/users/kleyde/galaxy_completion/gaussian_toy_model/results/power_spectrum_toy/",
         kwargs_sampler=dict(
             num_posterior_samples=200,
         ),
+        data_location=None,
+        results_location=None,
         id_job=0,
     ):
         self.kwargs_catalog = kwargs_catalog
@@ -104,7 +100,7 @@ class Analysis(RealLogNormalField):
 
     def get_data(self):
         return helper_functions.load_data(
-            data_folder=self.data_location + self.kwargs_catalog["data_folder"],
+            data_folder=self.data_location,
             catalog_file_name=self.kwargs_catalog["catalog_file_name"],
             dimensions=self.dimensions,
             pixelation=self.kwargs_catalog["pixelation"],
@@ -220,7 +216,7 @@ class Analysis(RealLogNormalField):
     def get_results_folder(self):
         return (
             self.results_location
-            + "/".join([self.kwargs_catalog["data_folder"], f"id_{self.id_job}"])
+            + "/".join([self.data_location, f"id_{self.id_job}"])
             + "/"
         )
 
@@ -375,12 +371,7 @@ class Analysis(RealLogNormalField):
         """
 
         if yaml_file_path == None:
-            if type(id_job) is str:
-                id_job = id_job.replace("id_", "")
-                id_job = id_job.split("_")[0]
-                id_job = int(id_job)
-
-            yaml_file_path = DEFAULT_SERVER_PATH_RESULTS.format(id_job)
+            raise "No yaml file path specified. "
 
         # Load settings from the YAML file
         with open(yaml_file_path, "r") as yaml_file:
@@ -396,7 +387,7 @@ class Analysis(RealLogNormalField):
         if "redshift_error_model" in self.kwargs_field.keys():
             if self.kwargs_field["redshift_error_model"] == "convolution-1d":
                 print("Using redshift error model. ")
-                model = models_v2.model
+                raise NotImplementedError('Redshift error model not implemented in public version. ')
             else:
                 model = models.model
         else:
@@ -447,6 +438,7 @@ def get_settings_from_parse_command_line(mode):
 
 
 def post_processing_default_command_line_args(args):
+    print(args["catalog_settings_path"])
     with open(args["catalog_settings_path"], "r") as yaml_file:
         kwargs_catalog = yaml.safe_load(yaml_file)
 
@@ -458,13 +450,15 @@ def post_processing_default_command_line_args(args):
         "kwargs_sampler",
         "kwargs_cosmology",
         "kwargs_field",
+        "data_location",
+        "results_location",
     ]:
         new_args[k] = args[k]
 
     # add the rest of the arguments
     for k in args.keys():
         if k not in new_args.keys() and k not in ["catalog_settings_path"]:
-            print(k)
+            print(f'Keyword not used: {k}')
             new_args[k] = args[k]
 
     return new_args

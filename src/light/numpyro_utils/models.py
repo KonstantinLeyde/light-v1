@@ -1,14 +1,22 @@
 import copy
 
-import GaussianCompletionToy.cosmology.cosmology as cosmology
-import GaussianCompletionToy.field.field as field
-import GaussianCompletionToy.numpyro_utils.sampling_utils as sampling_utils
-import GaussianCompletionToy.utils.conventions as conventions
-import GaussianCompletionToy.utils.jax_utils as jax_utils
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 from numpyro.distributions.transforms import AffineTransform
+
+from ..cosmology.cosmology import Cosmology
+from ..field.field import (
+    RealLogNormalField,
+    bias_function,
+    bias_function_exp,
+)
+from ..numpyro_utils.sampling_utils import get_prior_dict_samples
+from ..utils.conventions import complete_cosmopower_dict, get_Omega_m
+from ..utils.jax_utils import (
+    compute_centers_and_delta_from_array,
+
+)
 
 from . import custom_distributions as custom_distributions
 from . import custom_transformations as custom_transformations
@@ -53,9 +61,9 @@ def model(
         replace_FT_with_packing = False
 
     if analysis.kwargs_field["galaxy_model"].startswith("simple-bias-gamma"):
-        bias_function = field.bias_function
+        bias_func = bias_function
     elif analysis.kwargs_field["galaxy_model"].startswith("simple-bias-exp-gamma"):
-        bias_function = field.bias_function_exp
+        bias_func = bias_function_exp
     else:
         raise NotImplementedError
 
@@ -63,7 +71,7 @@ def model(
     for key in prior_dict.keys():
         params[key] = {}
         for param in prior_dict[key].keys():
-            params[key][param] = sampling_utils.get_prior_dict_samples(
+            params[key][param] = get_prior_dict_samples(
                 param, prior_dict[key][param]
             )
 
@@ -76,7 +84,7 @@ def model(
     elif analysis.kwargs_field["power_spectrum_model"] in ["smooth-turnover"]:
         pass
     elif analysis.kwargs_field["power_spectrum_model"] == "cosmopower":
-        params_power_spectrum = conventions.complete_cosmopower_dict(
+        params_power_spectrum = complete_cosmopower_dict(
             params_power_spectrum=params["power_spectrum"],
             params_cosmology=params["cosmology"],
             z=0,
@@ -88,7 +96,7 @@ def model(
         raise "Power spectrum model not known. "
 
     # cosmological inference
-    Omega_m = conventions.get_Omega_m(params_cosmology=params["cosmology"])
+    Omega_m = get_Omega_m(params_cosmology=params["cosmology"])
     Omega_m = numpyro.deterministic("Omega_m", Omega_m)
     params_cosmo = dict(H0=params["cosmology"]["H0"], Omega_m=Omega_m)
 
@@ -99,11 +107,11 @@ def model(
                 z_boundaries[-1] + 0.1
             )
 
-        cosmological_model = cosmology.Cosmology(
+        cosmological_model = Cosmology(
             params=params_cosmo, numerics=analysis.kwargs_cosmology["cosmo_numerics"]
         )
     else:
-        cosmological_model = cosmology.CosmologyPolynomial(params=params_cosmo)
+        raise NotImplementedError
 
     if analysis.kwargs_catalog["pixelation"] == "redshift":
         comoving_distance_boundaries = cosmological_model.get_comoving_distance_from_z(
@@ -141,7 +149,7 @@ def model(
         raise NotImplementedError
 
     # initiate new field class
-    field_instance = field.RealLogNormalField(
+    field_instance = RealLogNormalField(
         box_size_d=new_box_size_d,
         box_shape_d=analysis.box_shape_d,
         power_spectrum_of_k=analysis.power_spectrum_of_k,
@@ -153,13 +161,13 @@ def model(
         z_line_sub = jnp.linspace(
             z_boundaries[0], z_boundaries[-1], box_sub_shape_d[2] + 1
         )
-        z_centers_sub, _ = jax_utils.compute_centers_and_delta_from_array(z_line_sub)
+        z_centers_sub, _ = compute_centers_and_delta_from_array(z_line_sub)
 
         comoving_distance_boundaries_sub = (
             cosmological_model.get_comoving_distance_from_z(z_line_sub)
         )
         _, deltas_comoving_distance_boundaries_long_sub = (
-            jax_utils.compute_centers_and_delta_from_array(
+            compute_centers_and_delta_from_array(
                 comoving_distance_boundaries_sub
             )
         )
@@ -242,7 +250,7 @@ def model(
                 field_instance.compute_gaussian_F_spatial()
                 field_instance.compute_density_contrast_DM()
                 field_instance.compute_density_g(
-                    bias_kwargs=params["galaxy_bias"], bias_function=bias_function
+                    bias_kwargs=params["galaxy_bias"], bias_function=bias_func
                 )
 
     # get the latent variable for the magnitude distribution

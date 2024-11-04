@@ -25,10 +25,10 @@ def get_data_folder(catalog_origin, data_location=""):
 def get_data_name(
     box_shape_d,
     m_threshold,
-    sample_from_schechter,
     Z_offset,
+    sample_from_schechter=False,
     catalog_name=None,
-    pixelation="comoving_distance",
+    pixelation="redshift",
     cut_magnitudes_above=False,
     special_deep_pixels=[],
     redshift_error_settings={},

@@ -40,59 +40,29 @@ def get_prior_dict(analysis):
 
     if magnitude_model.magnitude_model_name != None:
         if magnitude_model.magnitude_model_name.startswith("NF_sigmoid"):
-            if analysis.kwargs_catalog["catalog_file_name_original"].startswith(
-                "millenium_bertone2007a"
-            ):
-                params_init = analysis.kwargs_sampler["magnitude_model_params_init"]
-                error_param = 0.14
-                params_init_err = jnp.array(
-                    [
-                        4,
-                        30,
-                        0.7,
-                        0.04,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                        error_param,
-                    ]
-                )
-            elif (
-                analysis.kwargs_catalog["catalog_file_name_original"]
-                == "millenium_bertone2007a_0.01_500Mpc.csv"
-            ):
-                params_init = analysis.kwargs_sampler["magnitude_model_params_init"]
-                params_init_err = jnp.array(
-                    [
-                        4,
-                        30,
-                        0.7,
-                        0.04,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                        0.1,
-                    ]
-                )
-            else:
-                raise NotImplementedError
-
+            params_init = analysis.kwargs_sampler["magnitude_model_params_init"]
+            error_param = 0.14
+            params_init_err = jnp.array(
+                [
+                    4,
+                    30,
+                    0.7,
+                    0.04,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                    error_param,
+                ]
+            )
+            
             for i, k in enumerate(["mu", "sigma", "eps", "eps_2"]):
                 prior_params_magnitudes[k] = dict(
                     min=params_init[k] - params_init_err[i],
