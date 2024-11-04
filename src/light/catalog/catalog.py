@@ -18,8 +18,6 @@ M_FAINT_MAX = -20.48399
 REDSHIFT_BUFFER = 1e-4
 
 SUN_ABSOLUTE_MAGNITUDE = 4.83
-DATA_LOCATION = "/users/kleyde/galaxy_completion/gaussian_toy_model/data/"
-
 
 def schechter(M_vals, M_star=M_STAR, alpha=ALPHA):
     prob = (
@@ -148,42 +146,8 @@ def absolute_magnitude_to_luminosity(absolute_magnitude):
     luminosity = 10 ** (exponent)
     return luminosity
 
-
-def load_catalog_data_v1(
-    x_file, y_file, z_file, abs_M_path, sample_from_schechter=False
-):
-    # Load X, Y, Z data from text files
-    x_data = pd.read_csv(x_file, header=None, names=["X"])
-    y_data = pd.read_csv(y_file, header=None, names=["Y"])
-    z_data = pd.read_csv(z_file, header=None, names=["Z"])
-
-    if sample_from_schechter:
-        number_galaxies = len(x_data)
-        abs_M_data = pd.DataFrame(dict(M=get_samples_from_schechter(number_galaxies)))
-    else:
-        abs_M_data = pd.read_csv(abs_M_path, header=None, names=["M"])
-
-    # Combine X, Y, Z into a single DataFrame
-    catalog_data = pd.concat([x_data, y_data, z_data, abs_M_data], axis=1)
-
-    return catalog_data
-
-
-def load_micecat_catalog_v1(
-    abs_path="./data/micecat_data_slice/", sample_from_schechter=False
-):
-    x_file_path = abs_path + "GalPosxMICECAT.txt"
-    y_file_path = abs_path + "GalPosyMICECAT.txt"
-    z_file_path = abs_path + "GalPoszMICECAT.txt"
-    abs_M_path = abs_path + "MagAbsMICECAT.txt"
-
-    return load_catalog_data_v1(
-        x_file_path, y_file_path, z_file_path, abs_M_path, sample_from_schechter
-    )
-
-
 def load_catalog_from_csv(
-    file_path, header, rename_dict, file_name, abs_path=DATA_LOCATION
+    file_path, header, rename_dict, file_name
 ):
     """
     Parameters
@@ -195,7 +159,7 @@ def load_catalog_from_csv(
     """
 
     raw_catalog = pd.read_csv(
-        abs_path + file_path + file_name,
+        file_path + file_name,
         header=header,
     )
 
@@ -209,6 +173,27 @@ def load_catalog_from_csv(
 
     return raw_catalog
 
+def load_catalog_df(catalog_origin, data_folder, catalog_file_name_original):
+    if catalog_origin == "micecat_box":
+        rename_dict = {"xgal": "X", "ygal": "Y", "zgal": "Z", "mr_gal": "M"}
+        catalog = load_catalog_from_csv(
+            data_folder,
+            file_name=catalog_file_name_original,
+            rename_dict=rename_dict,
+            header=11,
+        )
+    elif catalog_origin.startswith("millenium"):
+        rename_dict = {"x": "X", "y": "Y", "z": "Z", "mag_k": "M"}
+        catalog = load_catalog_from_csv(
+            data_folder,
+            file_name=catalog_file_name_original,
+            rename_dict=rename_dict,
+            header=9,
+        )
+    else:
+        raise f"Not implemented for catalog origin of {catalog_origin}. "
+    
+    return catalog
 
 class SimulatedCatalog:
     """
@@ -229,15 +214,14 @@ class SimulatedCatalog:
     cosmology (dict): 
         Cosmological parameters (e.g., H0, Omega_m) required for distance calculations.
     galaxies_percentage (float): 
-        Fraction of galaxies to sample from the catalog.
+        Fraction of galaxies contained in the catalog. For testing, we have explored
+        0.01, 0.1 and 1 of all millennium galaxies.
     geometry (str): 
         Shape of the simulation volume (e.g., "toy" for toy-model geometry).
     Z_offset (float): 
         Offset for the galaxy redshift distribution.
     debug (bool): 
         If True, loads a subset (e.g., 10,000 galaxies) for testing and faster debugging.
-    sample_from_schechter (bool): 
-        If True, samples galaxies according to a Schechter luminosity function.
     zmax (float): 
         Maximum redshift limit for galaxy selection.
     pixelation (str): 
@@ -259,26 +243,25 @@ class SimulatedCatalog:
 
     def __init__(
         self,
-        catalog_origin,
-        pixel_length_in_Mpc_comoving,
-        m_threshold,
-        cosmology,
-        galaxies_percentage,
+        catalog=None,
+        pixel_length_in_Mpc_comoving=None,
+        m_threshold=None,
+        cosmology=None,
+        galaxies_percentage=None,
         geometry="toy",
         Z_offset=0,
-        debug=True,
-        sample_from_schechter=False,
+        debug=False,
         zmax=2,
-        pixelation="comoving_distance",
+        pixelation="redshift",
         box_size_d=None,
         redshift_num_bins=None,
         cut_magnitudes_above=False,
         special_deep_pixels=[],
         redshift_error_settings={},
+        output_filename=None,
         postfix_name="",
     ):
-        self.catalog_origin = catalog_origin
-        self.data_folder = _helper_functions.get_data_folder(self.catalog_origin)
+        self.catalog = catalog
         self.pixel_length_in_Mpc_comoving = pixel_length_in_Mpc_comoving
         self.m_threshold = m_threshold
         self.cosmology = cosmology
@@ -287,7 +270,6 @@ class SimulatedCatalog:
         self.debug = debug
         self.zmax = zmax
         self.Z_offset = Z_offset  # for the computation of the distance
-        self.sample_from_schechter = sample_from_schechter
         self.pixelation = pixelation  # whether the galaxies are binned in redshift or comoving coordinates
         self.redshift_num_bins = redshift_num_bins
         self.box_size_d = box_size_d
@@ -296,41 +278,8 @@ class SimulatedCatalog:
         self.redshift_error_settings = redshift_error_settings
         self.postfix_name = postfix_name
 
-        self.catalog_file_name_original = conventions.get_original_catalog_file_name(
-            self.catalog_origin, self.galaxies_percentage, self.box_size_d[2]
-        )
-
         self.dimensions = len(pixel_length_in_Mpc_comoving)
         self.set_coordinates(self.dimensions)
-
-        if catalog_origin == "micecat_box":
-            if sample_from_schechter:
-                raise "Cannot sample from Schechter in this configuration. "
-            rename_dict = {"xgal": "X", "ygal": "Y", "zgal": "Z", "mr_gal": "M"}
-            self.catalog = load_catalog_from_csv(
-                self.data_folder,
-                file_name=self.catalog_file_name_original,
-                rename_dict=rename_dict,
-                header=11,
-            )
-        elif catalog_origin == "molino":
-            if not sample_from_schechter:
-                raise "We have created samples from Schechter in this configuration. "
-            rename_dict = {"xgal": "X", "ygal": "Y", "zgal": "Z", "mr_gal": "M"}
-            self.catalog = load_catalog_from_csv(
-                self.data_folder,
-                file_name=self.catalog_file_name_original,
-                rename_dict=rename_dict,
-                header=0,
-            )
-        elif catalog_origin.startswith("millenium"):
-            rename_dict = {"x": "X", "y": "Y", "z": "Z", "mag_k": "M"}
-            self.catalog = load_catalog_from_csv(
-                self.data_folder,
-                file_name=self.catalog_file_name_original,
-                rename_dict=rename_dict,
-                header=9,
-            )
 
         if self.redshift_error_settings != {}:
             if self.pixelation == "comoving_distance":
@@ -357,18 +306,21 @@ class SimulatedCatalog:
         self.add_truth()
         self.put_bin_counts_in_matrix()
 
-        self.file_name = _helper_functions.get_data_name(
-            box_shape_d=self.box_shape_d,
-            m_threshold=self.m_threshold,
-            sample_from_schechter=self.sample_from_schechter,
-            Z_offset=self.Z_offset,
-            catalog_name=self.catalog_file_name_original,
-            pixelation=self.pixelation,
-            cut_magnitudes_above=self.cut_magnitudes_above,
-            special_deep_pixels=self.special_deep_pixels,
-            redshift_error_settings=redshift_error_settings,
-            postfix_name=self.postfix_name,
-        )
+        if output_filename is not None:
+            self.output_filename = output_filename
+        else:
+            self.output_filename = _helper_functions.get_data_name(
+                box_shape_d=self.box_shape_d,
+                m_threshold=self.m_threshold,
+                sample_from_schechter=False,
+                Z_offset=self.Z_offset,
+                catalog_name='catalog',
+                pixelation=self.pixelation,
+                cut_magnitudes_above=self.cut_magnitudes_above,
+                special_deep_pixels=self.special_deep_pixels,
+                redshift_error_settings=redshift_error_settings,
+                postfix_name=self.postfix_name,
+            )
 
         self.compute_fraction_galaxies_never_observed()
         self.sanity_check()
@@ -464,7 +416,7 @@ class SimulatedCatalog:
 
         self.catalog["luminosity_distance"] = self.cosmology.luminosity_distance(
             self.catalog["z"]
-        ).values
+        ).value
 
     def complete_apparent_magnitudes(self):
         self.catalog["m"] = apparent_magnitude_from_abs_magnitude(
@@ -804,12 +756,7 @@ class SimulatedCatalog:
             self.m_threshold, self.bins_luminosity_distance
         )
 
-        cdf_from_M_val_interp = get_cdf_schechter_interpolation()
-
-        if self.sample_from_schechter:
-            pdet = cdf_from_M_val_interp(abs_magnitude_threshold)
-        else:
-            pdet = self.cdf_from_absolute_magnitude(abs_magnitude_threshold)
+        pdet = self.cdf_from_absolute_magnitude(abs_magnitude_threshold)
 
         abs_magnitude_threshold = np.mean(abs_magnitude_threshold, axis=1)
         pdet = np.mean(pdet, axis=1)
@@ -864,8 +811,8 @@ class SimulatedCatalog:
         plt.title("Galaxy Count Matrix")
         plt.show()
 
-    def save_matrices(self):
-        file_name = DATA_LOCATION + "/".join([self.data_folder, self.file_name])
+    def save_matrices(self, filepath):
+        file_name = filepath + "/".join([self.output_filename])
 
         self.matrix_bin_counts.to_csv(file_name, index=True)
 
@@ -899,20 +846,17 @@ class SimulatedCatalog:
         )
 
         settings_data = {
-            "catalog_origin": self.catalog_origin,
-            "data_folder": self.data_folder,
             "pixel_length_in_Mpc_comoving": self.pixel_length_in_Mpc_comoving,
             "m_threshold": self.m_threshold,
             "geometry": self.geometry,
             "debug": self.debug,
             "zmax": self.zmax,
-            "catalog_file_name_original": self.catalog_file_name_original,
             "Z_offset": self.Z_offset,
-            "sample_from_schechter": self.sample_from_schechter,
+            "sample_from_schechter": False,
             "pixelation": self.pixelation,
             "redshift_num_bins": self.redshift_num_bins,
             "box_size_d": self.box_size_d,
-            "catalog_file_name": self.file_name,
+            "catalog_file_name": self.output_filename,
             "box_shape_d": self.box_shape_d,
             "galaxies_percentage": self.galaxies_percentage,
             "box_shape_d": self.box_shape_d,
