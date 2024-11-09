@@ -1,8 +1,9 @@
 import light.utils.plotting as plotting
 import light.utils.result as result
 
-args = result.get_settings_from_parse_command_line(mode='settings')
-analysis = result.Analysis.from_yaml(id_job=args['id_job'])
+yaml_file_path = './PATH_TO_YOUR_RESULTS/'
+
+analysis = result.Analysis.from_yaml(yaml_file_path=yaml_file_path)
 analysis.load_numpyro_result(skip_diverging_chains=True)
 
 plotting.make_corner_plot(

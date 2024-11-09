@@ -216,8 +216,6 @@ class Analysis(RealLogNormalField):
     def get_results_folder(self):
         return (
             self.results_location
-            + "/".join([self.data_location, f"id_{self.id_job}"])
-            + "/"
         )
 
     def get_results_file_name(self):
@@ -362,7 +360,7 @@ class Analysis(RealLogNormalField):
             )
 
     @classmethod
-    def from_yaml(cls, id_job, yaml_file_path=None):
+    def from_yaml(cls, id_job=None, yaml_file_path=None):
         """
         Load the analysis from a yaml file, we have to also specify the id_job,
         since this is not always a priori known if the job is defined by the file
