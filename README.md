@@ -31,11 +31,14 @@ If you use this software, please cite:
 ```bibtex
 @article{Leyde:2024tov,
     author = "Leyde, Konstantin and Baker, Tessa and Enzi, Wolfgang",
-    title = "{Cosmic Cartography: Bayesian reconstruction of the galaxy density informed by large-scale structure}",
+    title = "{Cosmic cartography: Bayesian reconstruction of the galaxy density informed by large-scale structure}",
     eprint = "2409.20531",
     archivePrefix = "arXiv",
     primaryClass = "astro-ph.CO",
-    month = "9",
+    doi = "10.1088/1475-7516/2024/12/013",
+    journal = "JCAP",
+    volume = "12",
+    pages = "013",
     year = "2024"
 }
 ```

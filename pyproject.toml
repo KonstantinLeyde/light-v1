@@ -37,7 +37,7 @@ dynamic = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/konstantinleyde/light"
+"Homepage" = "https://github.com/konstantinleyde/light-v1"
 # "Documentation" = ""
 
 [project.optional-dependencies]
