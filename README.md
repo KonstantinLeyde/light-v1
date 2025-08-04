@@ -1,5 +1,7 @@
 # LIGHT
 
+For the updated code that works in spherical coordinates, see the [updated code](https://github.com/KonstantinLeyde/light).
+
 **L**arge-scale structure for the **I**nference of the **G**alaxy field with **H**amiltonian **M**onte-**C**arlo
 
 **LIGHT** is a Bayesian framework for reconstructing the galaxy field and underlying dark matter field using Hamiltonian Monte Carlo (HMC), and more specifically [NumPyro](https://num.pyro.ai/en/stable/). This package is designed to improve the inference of cosmological parameters with gravitational waves and galaxy catalogs, a.k.a. the dark siren method.
